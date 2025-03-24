@@ -1,0 +1,62 @@
+name: Update & Build on Nextcloud Release
+
+on:
+  schedule:
+    - cron: '0 0 * * *' # Check daily at midnight UTC
+  workflow_dispatch: {} # Manual trigger
+
+jobs:
+  update-nextcloud:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
+      - name: Get latest Nextcloud Apache tag
+        id: get_tag
+        run: |
+          TAG=$(curl -s https://hub.docker.com/v2/repositories/library/nextcloud/tags?page_size=100 | \
+            jq -r '.results[] | select(.name | test("^[0-9]+\\.[0-9]+\\.[0-9]+-apache$")) | .name' | \
+            sort -V | tail -n1)
+          echo "Latest tag: $TAG"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+      - name: Check if Dockerfile already has this tag
+        id: check_update
+        run: |
+          CURRENT_TAG=$(grep -oP '^FROM nextcloud:\K.*' Dockerfile)
+          echo "Current tag in Dockerfile: $CURRENT_TAG"
+          if [ "$CURRENT_TAG" = "${{ steps.get_tag.outputs.tag }}" ]; then
+            echo "Tag is up to date. Skipping build."
+            echo "up_to_date=true" >> $GITHUB_OUTPUT
+          else
+            echo "up_to_date=false" >> $GITHUB_OUTPUT
+
+      - name: Update Dockerfile
+        if: steps.check_update.outputs.up_to_date == 'false'
+        run: |
+          sed -i "s|^FROM nextcloud:.*|FROM nextcloud:${{ steps.get_tag.outputs.tag }}|" Dockerfile
+
+      - name: Commit updated Dockerfile
+        if: steps.check_update.outputs.up_to_date == 'false'
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git commit -am "Update base image to nextcloud:${{ steps.get_tag.outputs.tag }}" || echo "No changes to commit"
+          git push
+
+      - name: Log in to GHCR
+        if: steps.check_update.outputs.up_to_date == 'false'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        if: steps.check_update.outputs.up_to_date == 'false'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ghcr.io/basepeak/nextcloud:${{ steps.get_tag.outputs.tag }}
