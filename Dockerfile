@@ -1,4 +1,4 @@
-FROM nextcloud:31.0.1-apache
+FROM nextcloud:31.0.2-apache
 
 LABEL org.opencontainers.image.source https://github.com/basepeak/nextcloud-docker
 
