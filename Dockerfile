@@ -12,5 +12,7 @@ RUN set -ex; \
         ghostscript \
         libmagickcore-6.q16-6-extra \
         procps \
+        screen \
+        vim \
     ; \
     rm -rf /var/lib/apt/lists/*
