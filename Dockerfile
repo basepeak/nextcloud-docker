@@ -14,5 +14,6 @@ RUN set -ex; \
         procps \
         screen \
         vim \
+        less \
     ; \
     rm -rf /var/lib/apt/lists/*
