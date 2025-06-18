@@ -15,5 +15,7 @@ RUN set -ex; \
         screen \
         vim \
         less \
+        ripgrep \
+        jq \
     ; \
     rm -rf /var/lib/apt/lists/*
