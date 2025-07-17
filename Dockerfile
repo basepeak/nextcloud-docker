@@ -19,3 +19,8 @@ RUN set -ex; \
         jq \
     ; \
     rm -rf /var/lib/apt/lists/*
+
+# Copy disable apps script to post-installation directory
+COPY disable-apps.sh /docker-entrypoint-hooks.d/post-installation/disable-apps.sh
+RUN chmod +x /docker-entrypoint-hooks.d/post-installation/disable-apps.sh
+
