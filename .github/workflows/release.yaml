@@ -19,14 +19,16 @@ jobs:
             jq -r '.results[] | select(.name | test("^[0-9]+\\.[0-9]+\\.[0-9]+-apache$")) | .name' | \
             sort -V | tail -n1)
           echo "Latest tag: $TAG"
-          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "Latest tag without suffix: ${TAG%-apache}"
+          echo "tag=${TAG%-apache}" >> $GITHUB_OUTPUT
+          echo "tag_with_suffix=${TAG}" >> $GITHUB_OUTPUT
 
       - name: Check if Dockerfile already has this tag
         id: check_update
         run: |
           CURRENT_TAG=$(grep -oP '^FROM nextcloud:\K.*' Dockerfile)
           echo "Current tag in Dockerfile: $CURRENT_TAG"
-          if [ "$CURRENT_TAG" = "${{ steps.get_tag.outputs.tag }}" ]; then
+          if [ "$CURRENT_TAG" = "${{ steps.get_tag.outputs.tag_with_suffix }}" ]; then
             echo "Tag is up to date. Skipping build."
             echo "up_to_date=true" >> $GITHUB_OUTPUT
           else
@@ -36,14 +38,14 @@ jobs:
       - name: Update Dockerfile
         if: steps.check_update.outputs.up_to_date == 'false'
         run: |
-          sed -i "s|^FROM nextcloud:.*|FROM nextcloud:${{ steps.get_tag.outputs.tag }}|" Dockerfile
+          sed -i "s|^FROM nextcloud:.*|FROM nextcloud:${{ steps.get_tag.outputs.tag_with_suffix }}|" Dockerfile
 
       - name: Commit updated Dockerfile
         if: steps.check_update.outputs.up_to_date == 'false'
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-          git commit -am "Update base image to nextcloud:${{ steps.get_tag.outputs.tag }}" || echo "No changes to commit"
+          git commit -am "Update base image to nextcloud:${{ steps.get_tag.outputs.tag_with_suffix }}" || echo "No changes to commit"
           git push
 
       - name: Log in to GHCR
